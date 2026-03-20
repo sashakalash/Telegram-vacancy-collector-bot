@@ -1,10 +1,8 @@
 import asyncio
-import base64
 import logging
-import os
-import tempfile
 
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
 import config
 from filter import matches, matched_keywords
@@ -17,7 +15,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("monitor.log", encoding="utf-8"),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -36,18 +33,10 @@ async def main():
     logger.info(f"Include: {include_kw}")
     logger.info(f"Exclude: {exclude_kw}")
 
-    if config.SESSION_STRING:
-        # Decode base64 session string to a temp file (for Railway/cloud)
-        session_bytes = base64.b64decode(config.SESSION_STRING)
-        tmp = tempfile.NamedTemporaryFile(suffix=".session", delete=False)
-        tmp.write(session_bytes)
-        tmp.close()
-        session_path = tmp.name[:-8]  # TelegramClient appends .session itself
-    else:
-        session_path = "monitor_session"
+    session = StringSession(config.SESSION_STRING) if config.SESSION_STRING else "monitor_session"
 
     client = TelegramClient(
-        session_path,
+        session,
         config.TG_API_ID,
         config.TG_API_HASH,
     )

@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 from datetime import datetime
 
 import gspread
@@ -20,9 +22,15 @@ _sheet = None  # cached sheet for writing vacancies
 def _get_spreadsheet():
     global _spreadsheet
     if _spreadsheet is None:
-        creds = Credentials.from_service_account_file(
-            GOOGLE_CREDENTIALS_FILE, scopes=SCOPES
-        )
+        credentials_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+        if credentials_json:
+            creds = Credentials.from_service_account_info(
+                json.loads(credentials_json), scopes=SCOPES
+            )
+        else:
+            creds = Credentials.from_service_account_file(
+                GOOGLE_CREDENTIALS_FILE, scopes=SCOPES
+            )
         client = gspread.authorize(creds)
         _spreadsheet = client.open_by_key(SPREADSHEET_ID)
     return _spreadsheet
