@@ -23,6 +23,9 @@ def build_link(channel: str, message_id: int) -> str:
     return f"https://t.me/{channel}/{message_id}"
 
 
+KEYWORDS_RELOAD_INTERVAL = 1800  # seconds
+
+
 async def main():
     logger.info("Starting monitor...")
 
@@ -32,6 +35,19 @@ async def main():
     logger.info(f"Channels: {channels}")
     logger.info(f"Include: {include_kw}")
     logger.info(f"Exclude: {exclude_kw}")
+
+    state = {"include": include_kw, "exclude": exclude_kw}
+
+    async def reload_keywords_loop():
+        while True:
+            await asyncio.sleep(KEYWORDS_RELOAD_INTERVAL)
+            try:
+                new_include, new_exclude = await asyncio.to_thread(load_keywords)
+                state["include"] = new_include
+                state["exclude"] = new_exclude
+                logger.info(f"Keywords reloaded: include={len(new_include)}, exclude={len(new_exclude)}")
+            except Exception as e:
+                logger.error(f"Failed to reload keywords: {e}")
 
     session = StringSession(config.SESSION_STRING) if config.SESSION_STRING else "monitor_session"
 
@@ -48,13 +64,13 @@ async def main():
 
         logger.info(f"Raw text from @{(await event.get_chat()).username}: {text[:300]}")
 
-        if not matches(text, include_kw, exclude_kw):
+        if not matches(text, state["include"], state["exclude"]):
             return
 
         chat = await event.get_chat()
         channel = chat.username or str(chat.id)
 
-        keywords = matched_keywords(text, include_kw)
+        keywords = matched_keywords(text, state["include"])
         link = build_link(channel, message.id)
 
         logger.info(f"Match in @{channel}: {keywords}")
@@ -80,6 +96,7 @@ async def main():
 
     logger.info(f"Monitoring {len(valid_channels)}/{len(channels)} channels")
     logger.info("Telethon connected. Waiting for messages...")
+    asyncio.create_task(reload_keywords_loop())
     await client.run_until_disconnected()
 
 

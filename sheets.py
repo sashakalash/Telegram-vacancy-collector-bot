@@ -78,6 +78,7 @@ def load_keywords() -> tuple[list[str], list[str]]:
         include = [row["keyword"].strip() for row in records if row.get("type") == "include" and row.get("keyword", "").strip()]
         exclude = [row["keyword"].strip() for row in records if row.get("type") == "exclude" and row.get("keyword", "").strip()]
         logger.info(f"Keywords loaded: include={len(include)}, exclude={len(exclude)}")
+        logger.debug(f"Exclude list: {exclude}")
         return include, exclude
     except Exception as e:
         logger.error(f"Error loading keywords: {e}")
