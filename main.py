@@ -49,6 +49,29 @@ async def main():
             except Exception as e:
                 logger.error(f"Failed to reload keywords: {e}")
 
+    async def reload_channels_loop():
+        nonlocal valid_channels
+        while True:
+            await asyncio.sleep(KEYWORDS_RELOAD_INTERVAL)
+            try:
+                new_channels = await asyncio.to_thread(load_channels)
+                validated = []
+                for ch in new_channels:
+                    try:
+                        await client.get_input_entity(ch)
+                        validated.append(ch)
+                    except ValueError:
+                        logger.warning(f"Channel not found on reload, skipping: {ch}")
+                if set(validated) != set(valid_channels):
+                    valid_channels = validated
+                    client.remove_event_handler(handler)
+                    client.add_event_handler(handler, events.NewMessage(chats=valid_channels))
+                    logger.info(f"Channels updated: {len(valid_channels)} active")
+                else:
+                    logger.info("Channels unchanged, no update needed")
+            except Exception as e:
+                logger.error(f"Failed to reload channels: {e}")
+
     session = StringSession(config.SESSION_STRING) if config.SESSION_STRING else "monitor_session"
 
     client = TelegramClient(
@@ -97,6 +120,7 @@ async def main():
     logger.info(f"Monitoring {len(valid_channels)}/{len(channels)} channels")
     logger.info("Telethon connected. Waiting for messages...")
     asyncio.create_task(reload_keywords_loop())
+    asyncio.create_task(reload_channels_loop())
     await client.run_until_disconnected()
 
 
